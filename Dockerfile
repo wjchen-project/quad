@@ -5,13 +5,17 @@ FROM golang:1.27.3-alpine AS build
 
 WORKDIR /src
 COPY go.mod go.sum ./
-RUN go mod download
+# BuildKit cache mount：跨构建复用 Go module 缓存，不进入最终镜像
+RUN --mount=type=cache,target=/go/pkg/mod \
+    go mod download
 
 COPY . .
-RUN CGO_ENABLED=0 GOOS=linux go build \
+RUN --mount=type=cache,target=/go/pkg/mod \
+    --mount=type=cache,target=/root/.cache/go-build \
+    CGO_ENABLED=0 GOOS=linux go build \
     -trimpath \
     -buildvcs=false \
-    -ldflags="-s -w" \
+    -ldflags="-s -w -X quad/internal/cli.Version=${QUAD_VERSION}" \
     -o /src/quad .
 
 # ---- 运行阶段 ----

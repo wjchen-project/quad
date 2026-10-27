@@ -1,7 +1,7 @@
 # 作者: wjchen
 name: docker
 
-# 只在打 v* 标签或手动触发时构建，镜像统一覆盖为 latest
+# 只在打 v* 标签或手动触发时构建
 on:
   workflow_dispatch:
   push:
@@ -10,8 +10,9 @@ on:
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
-  # 纯 Go 无 cgo，可同时出 arm64；只想要 amd64 时改成 "linux/amd64"
-  PLATFORMS: linux/amd64,linux/arm64
+  # 只构建 x64，避免 QEMU 模拟 arm64 导致编译耗时数倍增长；
+  # 需要 arm64 时改为 "linux/amd64,linux/arm64"
+  PLATFORMS: linux/amd64
 
 permissions:
   contents: read
@@ -27,9 +28,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
 
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v4
-
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
 
@@ -40,6 +38,7 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      # ---- BuildKit：cache mount 复用 Go module 与编译缓存 ----
       - name: Build and push
         id: build
         uses: docker/build-push-action@v7
@@ -48,21 +47,26 @@ jobs:
           file: ./Dockerfile
           platforms: ${{ env.PLATFORMS }}
           push: true
-          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.ref_name }}
           labels: |
             org.opencontainers.image.title=quad
             org.opencontainers.image.source=https://github.com/${{ github.repository }}
             org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.version=${{ github.ref_name }}
             org.opencontainers.image.licenses=MIT
+          build-args: |
+            QUAD_VERSION=${{ github.ref_name }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      # ---- 从 registry 反查刚推送的镜像，取真实 digest / 大小 / 各平台构建时间 ----
+      # ---- 从 registry 反查刚推送的镜像，取真实 digest / 大小 / 构建时间 ----
       - name: Inspect pushed image
         id: inspect
         run: |
           set -euo pipefail
-          image="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest"
+          image="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.ref_name }}"
 
           # 用 {{json .Manifest}} 而非 --raw：raw 的 manifest list 缺顶层 digest 字段
           docker buildx imagetools inspect "$image" --format '{{json .Manifest}}' | tee manifest.json
@@ -81,7 +85,7 @@ jobs:
           echo "size=${size_human}" >> "$GITHUB_OUTPUT"
 
           # 逐平台取镜像 config 的 created 字段，即该平台镜像的构建完成时间。
-          # 取整段 JSON 再用 jq 解析，避免 Go template 字段名大小写问题。
+          # 取整段 JSON 再用 jq 解析，避免 Go 模板字段名大小写问题。
           for platform in $(echo '${{ env.PLATFORMS }}' | tr ',' ' '); do
             arch="${platform#linux/}"
             created="$(docker buildx imagetools inspect "$image" \
@@ -106,8 +110,7 @@ jobs:
             echo "| Pinned ref | \`${image}@${digest}\` |"
             echo "| Platforms | $(echo '${{ env.PLATFORMS }}' | tr ',' ' ') |"
             echo "| Total size | ${{ steps.inspect.outputs.size }} |"
-            echo "| Image built at (amd64) | ${{ steps.inspect.outputs.created-amd64 }} |"
-            echo "| Image built at (arm64) | ${{ steps.inspect.outputs.created-arm64 }} |"
+            echo "| Image built at | ${{ steps.inspect.outputs.created-amd64 }} |"
             echo "| Workflow finished at | ${built_at} |"
             echo "| Git ref | \`${{ github.ref_name }}\` |"
             echo "| Commit | \`${{ github.sha }}\` |"
