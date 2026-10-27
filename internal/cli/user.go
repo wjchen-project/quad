@@ -8,12 +8,12 @@ import (
 	"strconv"
 	"strings"
 
-	"todo_helper/internal/auth"
-	"todo_helper/internal/client"
-	"todo_helper/internal/store"
+	"quad/internal/auth"
+	"quad/internal/client"
+	"quad/internal/store"
 )
 
-const userUsage = `用法: todo_helper user <子命令> [参数]
+const userUsage = `用法: quad user <子命令> [参数]
 
 以下命令均需要管理员权限:
   list                      列出全部用户
@@ -52,7 +52,7 @@ func runUser(args []string) int {
 
 func runUserList(args []string) int {
 	fs := newFlagSet("user list")
-	fs.Usage = func() { fmt.Print("用法: todo_helper user list\n") }
+	fs.Usage = func() { fmt.Print("用法: quad user list\n") }
 	if ok, code := parseFlags(fs, args, false); !ok {
 		return code
 	}
@@ -77,7 +77,7 @@ func runUserAdd(args []string) int {
 	role := fs.String("role", store.RoleUser, "角色: user 或 admin")
 	fs.StringVar(role, "r", store.RoleUser, "同 --role")
 	fs.Usage = func() {
-		printUsage(fs, `用法: todo_helper user add --username <用户名> [参数]
+		printUsage(fs, `用法: quad user add --username <用户名> [参数]
 
 参数:
 `)
@@ -122,7 +122,7 @@ func runUserPasswd(args []string) int {
 	password := fs.String("password", "", "新密码（留空则随机生成并打印）")
 	fs.StringVar(password, "p", "", "同 --password")
 	fs.Usage = func() {
-		printUsage(fs, `用法: todo_helper user passwd <用户名|ID> [参数]
+		printUsage(fs, `用法: quad user passwd <用户名|ID> [参数]
 
 参数:
 `)
@@ -130,7 +130,7 @@ func runUserPasswd(args []string) int {
 	if ok, code := parseFlags(fs, args, true); !ok {
 		return code
 	}
-	ref, code := singleArg(fs, "用法: todo_helper user passwd <用户名|ID> [参数]")
+	ref, code := singleArg(fs, "用法: quad user passwd <用户名|ID> [参数]")
 	if code != 0 {
 		return code
 	}
@@ -167,12 +167,12 @@ func runUserPasswd(args []string) int {
 
 func runUserRole(args []string) int {
 	fs := newFlagSet("user role")
-	fs.Usage = func() { fmt.Print("用法: todo_helper user role <用户名|ID> <admin|user>\n") }
+	fs.Usage = func() { fmt.Print("用法: quad user role <用户名|ID> <admin|user>\n") }
 	if ok, code := parseFlags(fs, args, true); !ok {
 		return code
 	}
 	if fs.NArg() != 2 {
-		fmt.Fprint(os.Stderr, "用法: todo_helper user role <用户名|ID> <admin|user>\n")
+		fmt.Fprint(os.Stderr, "用法: quad user role <用户名|ID> <admin|user>\n")
 		return 2
 	}
 	role, ok := store.NormalizeRole(fs.Arg(1))
@@ -198,11 +198,11 @@ func runUserRole(args []string) int {
 
 func runUserRemove(args []string) int {
 	fs := newFlagSet("user rm")
-	fs.Usage = func() { fmt.Print("用法: todo_helper user rm <用户名|ID>\n") }
+	fs.Usage = func() { fmt.Print("用法: quad user rm <用户名|ID>\n") }
 	if ok, code := parseFlags(fs, args, true); !ok {
 		return code
 	}
-	ref, code := singleArg(fs, "用法: todo_helper user rm <用户名|ID>")
+	ref, code := singleArg(fs, "用法: quad user rm <用户名|ID>")
 	if code != 0 {
 		return code
 	}

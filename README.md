@@ -1,4 +1,4 @@
-# todo_helper
+# quad
 
 终端待办工具：**客户端与服务端共用同一个二进制**。服务端提供 HTTP API（用户管理 + 待办管理），客户端通过 CLI 操作，数据存储在 SQLite。
 
@@ -7,35 +7,57 @@
 - `serve` 启动 API 服务端；同一二进制提供 `login` / `todo` / `user` 等客户端命令。
 - 用户管理仅管理员可用；首次启动自动创建管理员（用户名默认 `sysadmin`），随机密码只打印一次。
 - 待办包含四象限优先级、标题、备注、状态、进度、创建时间、完成时间。
-- 访问令牌 + 刷新令牌；登录态保存在用户目录（默认 `~/.todo_helper/session.json`），访问令牌过期时客户端自动续期。
+- 访问令牌 + 刷新令牌；登录态保存在用户目录（默认 `~/.quad/session.json`），访问令牌过期时客户端自动续期。
 - SQLite 使用纯 Go 驱动（`modernc.org/sqlite`），无需 cgo / gcc。
 
 ## 快速开始
 
 ```bash
-go build -o todo_helper .
+go build -o quad .
 
 # 终端 1：启动服务端（首次会打印随机管理员密码）
-./todo_helper serve
+./quad serve
 
 # 终端 2：登录（也可不带 -p，交互式输入密码）
-./todo_helper login -u sysadmin -p '<首次启动打印的密码>'
+./quad login -u sysadmin -p '<首次启动打印的密码>'
 
-./todo_helper todo add -t "写周报" -n "周五前完成" -q q1
-./todo_helper todo list
-./todo_helper todo done 1
-./todo_helper whoami
+./quad todo add -t "写周报" -n "周五前完成" -q q1
+./quad todo list
+./quad todo done 1
+./quad whoami
 ```
 
 服务端默认监听 `127.0.0.1:8787`，客户端默认连接同一地址；连其他地址用 `login -s http://host:port`。
+
+## Docker 部署
+
+```bash
+docker compose up -d --build
+docker compose logs quad | grep -A2 '首次启动'   # 首次启动打印管理员密码
+```
+
+宿主机安装 CLI 后连接容器：
+
+```bash
+go build -o quad .
+./quad login -s http://127.0.0.1:8787 -u sysadmin
+```
+
+说明：
+
+- 镜像多阶段构建（`golang:1.27.3-alpine` → `alpine:3.22`），以非 root 用户（uid 10001）运行，监听 `0.0.0.0:8787`，自带 `/healthz` 健康检查。
+- 配置、SQLite 数据库、JWT 密钥都保存在命名卷 `quad-data` 的 `/data` 下；`docker compose down` 不会删数据，`down -v` 才会。
+- 端口可用 `QUAD_PORT=9000 docker compose up -d` 覆盖；默认只绑定宿主机 `127.0.0.1`，需要远程访问时改 `ports` 并自行加 TLS 反向代理。
+- 管理员用户名用 `QUAD_ADMIN_USERNAME` 覆盖。
+- 若改用宿主机目录（`./data:/data`），需保证 uid 10001 可写：`sudo chown -R 10001:10001 ./data`。
 
 ## 命令
 
 ### 服务端
 
 ```bash
-todo_helper serve [--addr 127.0.0.1:8787] [--db <path>] [--config <path>] \
-                  [--admin-username sysadmin] [--reset-admin-password]
+quad serve [--addr 127.0.0.1:8787] [--db <path>] [--config <path>] \
+           [--admin-username sysadmin] [--reset-admin-password]
 ```
 
 - `--reset-admin-password`：启动时重置配置的管理员密码并打印新密码（忘记密码时使用）。
@@ -44,23 +66,23 @@ todo_helper serve [--addr 127.0.0.1:8787] [--db <path>] [--config <path>] \
 ### 认证
 
 ```bash
-todo_helper login [-s <server>] [-u <username>] [-p <password>]
-todo_helper logout
-todo_helper whoami
+quad login [-s <server>] [-u <username>] [-p <password>]
+quad logout
+quad whoami
 ```
 
-登录成功后 token / refresh_token 写入 `~/.todo_helper/session.json`（权限 0600）；`logout` 会撤销服务端刷新令牌并删除本地文件。
+登录成功后 token / refresh_token 写入 `~/.quad/session.json`（权限 0600）；`logout` 会撤销服务端刷新令牌并删除本地文件。
 
 ### 待办
 
 ```bash
-todo_helper todo add    -t <标题> -q <q1..q4> [-n 备注] [-s 状态] [-p 进度]
-todo_helper todo list   [-s 状态] [-q 象限] [--limit N] [--offset N]
-todo_helper todo show   <ID>
-todo_helper todo update <ID> [-t 标题] [-n 备注] [-q 象限] [-s 状态] [-p 进度]
-todo_helper todo done   <ID>
-todo_helper todo start  <ID>
-todo_helper todo rm     <ID>
+quad todo add    -t <标题> -q <q1..q4> [-n 备注] [-s 状态] [-p 进度]
+quad todo list   [-s 状态] [-q 象限] [--limit N] [--offset N]
+quad todo show   <ID>
+quad todo update <ID> [-t 标题] [-n 备注] [-q 象限] [-s 状态] [-p 进度]
+quad todo done   <ID>
+quad todo start  <ID>
+quad todo rm     <ID>
 ```
 
 参数可以放在 ID 前后，例如 `todo update 3 -p 60 -s in_progress` 与 `todo update -p 60 3` 等价。
@@ -86,36 +108,36 @@ todo_helper todo rm     <ID>
 ### 用户管理（管理员）
 
 ```bash
-todo_helper user list
-todo_helper user add    -u <用户名> [-p 密码] [-r user|admin]
-todo_helper user passwd <用户名|ID> [-p 新密码]
-todo_helper user role   <用户名|ID> <admin|user>
-todo_helper user rm     <用户名|ID>
+quad user list
+quad user add    -u <用户名> [-p 密码] [-r user|admin]
+quad user passwd <用户名|ID> [-p 新密码]
+quad user role   <用户名|ID> <admin|user>
+quad user rm     <用户名|ID>
 ```
 
 不指定密码时自动生成并打印。最后一个管理员不能被降级或删除，也不能删除当前登录账号。
 
 ## 配置
 
-默认数据目录 `~/.todo_helper`，可用 `TODO_HELPER_HOME` 整体覆盖。优先级：**命令行参数 > 环境变量 > 配置文件 > 默认值**。
+默认数据目录 `~/.quad`，可用 `QUAD_HOME` 整体覆盖。优先级：**命令行参数 > 环境变量 > 配置文件 > 默认值**。
 
 | 环境变量 | 说明 | 默认 |
 | --- | --- | --- |
-| `TODO_HELPER_HOME` | 数据目录 | `~/.todo_helper` |
-| `TODO_HELPER_CONFIG` | 服务端配置文件 | `<HOME>/server.json` |
-| `TODO_HELPER_ADDR` | 监听地址 | `127.0.0.1:8787` |
-| `TODO_HELPER_DB` | SQLite 路径 | `<HOME>/todo_helper.db` |
-| `TODO_HELPER_ADMIN_USERNAME` | 管理员用户名 | `sysadmin` |
-| `TODO_HELPER_ACCESS_TOKEN_MINUTES` | 访问令牌有效期（分钟） | `30` |
-| `TODO_HELPER_REFRESH_TOKEN_HOURS` | 刷新令牌有效期（小时） | `720` |
-| `TODO_HELPER_USERNAME` | `login` 默认用户名 | `sysadmin` |
+| `QUAD_HOME` | 数据目录 | `~/.quad` |
+| `QUAD_CONFIG` | 服务端配置文件 | `<HOME>/server.json` |
+| `QUAD_ADDR` | 监听地址 | `127.0.0.1:8787` |
+| `QUAD_DB` | SQLite 路径 | `<HOME>/quad.db` |
+| `QUAD_ADMIN_USERNAME` | 管理员用户名 | `sysadmin` |
+| `QUAD_ACCESS_TOKEN_MINUTES` | 访问令牌有效期（分钟） | `30` |
+| `QUAD_REFRESH_TOKEN_HOURS` | 刷新令牌有效期（小时） | `720` |
+| `QUAD_USERNAME` | `login` 默认用户名 | `sysadmin` |
 
-配置文件示例（`~/.todo_helper/server.json`）：
+配置文件示例（`~/.quad/server.json`）：
 
 ```json
 {
   "addr": "127.0.0.1:8787",
-  "db_path": "C:/Users/me/.todo_helper/todo_helper.db",
+  "db_path": "C:/Users/me/.quad/quad.db",
   "admin_username": "sysadmin",
   "access_token_minutes": 30,
   "refresh_token_hours": 720

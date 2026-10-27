@@ -8,11 +8,11 @@ import (
 	"strconv"
 	"strings"
 
-	"todo_helper/internal/client"
-	"todo_helper/internal/store"
+	"quad/internal/client"
+	"quad/internal/store"
 )
 
-const todoUsage = `用法: todo_helper todo <子命令> [参数]
+const todoUsage = `用法: quad todo <子命令> [参数]
 
 子命令:
   add      添加待办（必须指定象限）
@@ -72,7 +72,7 @@ func runTodoAdd(args []string) int {
 	progress := fs.Int("progress", -1, "进度 0-100")
 	fs.IntVar(progress, "p", -1, "同 --progress")
 	fs.Usage = func() {
-		printUsage(fs, `用法: todo_helper todo add --title <标题> --quadrant <象限> [参数]
+		printUsage(fs, `用法: quad todo add --title <标题> --quadrant <象限> [参数]
 
 参数:
 `)
@@ -131,7 +131,7 @@ func runTodoList(args []string) int {
 	limit := fs.Int("limit", 0, "最多返回条数（默认 200）")
 	offset := fs.Int("offset", 0, "跳过条数")
 	fs.Usage = func() {
-		printUsage(fs, `用法: todo_helper todo list [参数]
+		printUsage(fs, `用法: quad todo list [参数]
 
 参数:
 `)
@@ -172,11 +172,11 @@ func runTodoList(args []string) int {
 
 func runTodoShow(args []string) int {
 	fs := newFlagSet("todo show")
-	fs.Usage = func() { fmt.Print("用法: todo_helper todo show <ID>\n") }
+	fs.Usage = func() { fmt.Print("用法: quad todo show <ID>\n") }
 	if ok, code := parseFlags(fs, args, true); !ok {
 		return code
 	}
-	id, code := parseIDArg(fs, "用法: todo_helper todo show <ID>")
+	id, code := parseIDArg(fs, "用法: quad todo show <ID>")
 	if code != 0 {
 		return code
 	}
@@ -205,7 +205,7 @@ func runTodoUpdate(args []string) int {
 	progress := fs.Int("progress", -1, "新进度 0-100")
 	fs.IntVar(progress, "p", -1, "同 --progress")
 	fs.Usage = func() {
-		printUsage(fs, `用法: todo_helper todo update <ID> [参数]
+		printUsage(fs, `用法: quad todo update <ID> [参数]
 
 只更新显式传入的字段。参数:
 `)
@@ -213,7 +213,7 @@ func runTodoUpdate(args []string) int {
 	if ok, code := parseFlags(fs, args, true); !ok {
 		return code
 	}
-	id, code := parseIDArg(fs, "用法: todo_helper todo update <ID> [参数]")
+	id, code := parseIDArg(fs, "用法: quad todo update <ID> [参数]")
 	if code != 0 {
 		return code
 	}
@@ -270,11 +270,11 @@ func runTodoUpdate(args []string) int {
 
 func runTodoSetStatus(args []string, status, label, command string) int {
 	fs := newFlagSet("todo " + command)
-	fs.Usage = func() { fmt.Printf("用法: todo_helper todo %s <ID>\n", command) }
+	fs.Usage = func() { fmt.Printf("用法: quad todo %s <ID>\n", command) }
 	if ok, code := parseFlags(fs, args, true); !ok {
 		return code
 	}
-	id, code := parseIDArg(fs, fmt.Sprintf("用法: todo_helper todo %s <ID>", command))
+	id, code := parseIDArg(fs, fmt.Sprintf("用法: quad todo %s <ID>", command))
 	if code != 0 {
 		return code
 	}
@@ -292,11 +292,11 @@ func runTodoSetStatus(args []string, status, label, command string) int {
 
 func runTodoRemove(args []string) int {
 	fs := newFlagSet("todo rm")
-	fs.Usage = func() { fmt.Print("用法: todo_helper todo rm <ID>\n") }
+	fs.Usage = func() { fmt.Print("用法: quad todo rm <ID>\n") }
 	if ok, code := parseFlags(fs, args, true); !ok {
 		return code
 	}
-	id, code := parseIDArg(fs, "用法: todo_helper todo rm <ID>")
+	id, code := parseIDArg(fs, "用法: quad todo rm <ID>")
 	if code != 0 {
 		return code
 	}

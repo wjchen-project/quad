@@ -1,0 +1,28 @@
+services:
+  quad:
+    build:
+      context: .
+    image: quad:latest
+    container_name: quad
+    restart: unless-stopped
+    ports:
+      # 默认只绑定宿主机回环地址；需要局域网/公网访问时改为 "0.0.0.0:${QUAD_PORT:-8787}:8787"
+      - "127.0.0.1:${QUAD_PORT:-8787}:8787"
+    environment:
+      # 数据目录（配置、SQLite、登录态都在这里，容器内不要改）
+      QUAD_HOME: /data
+      # 管理员用户名；密码在首次启动时随机生成，通过 docker compose logs 查看
+      QUAD_ADMIN_USERNAME: ${QUAD_ADMIN_USERNAME:-sysadmin}
+      QUAD_ACCESS_TOKEN_MINUTES: ${QUAD_ACCESS_TOKEN_MINUTES:-30}
+      QUAD_REFRESH_TOKEN_HOURS: ${QUAD_REFRESH_TOKEN_HOURS:-720}
+    volumes:
+      - quad-data:/data
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8787/healthz"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+
+volumes:
+  quad-data:

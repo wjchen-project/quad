@@ -2,17 +2,18 @@
 
 ## 项目概况
 
-- 单二进制 Go 项目（module `todo_helper`）：`serve` 提供 HTTP API，其余命令是 CLI 客户端，二者共用 `main.go` 入口与 `internal/cli` 分发。
+- 单二进制 Go 项目（module `quad`）：`serve` 提供 HTTP API，其余命令是 CLI 客户端，二者共用 `main.go` 入口与 `internal/cli` 分发。
 - 依赖方向：`cli → client → HTTP API → store`；`serve` 走 `cli → api → store`。`config`、`auth`、`bootstrap` 被两边共享。
-- 默认路径：配置 `~/.todo_helper/server.json`，数据库 `~/.todo_helper/todo_helper.db`，登录态 `~/.todo_helper/session.json`。`TODO_HELPER_HOME` 覆盖整个目录，测试依赖它。
+- 默认路径：配置 `~/.quad/server.json`，数据库 `~/.quad/quad.db`，登录态 `~/.quad/session.json`。`QUAD_HOME` 覆盖整个目录，测试依赖它。
 - 默认监听 `127.0.0.1:8787`，客户端默认同址；已初始化 git（默认分支 `main`），暂无 CI 与 lint 配置。
+- 容器化：`Dockerfile` 多阶段构建（Go → Alpine），运行用户 uid 10001，数据目录 `/data`；`docker-compose.yml` 使用命名卷 `quad-data`，容器内必须监听 `0.0.0.0:8787` 才能被宿主机访问。
 
 ## 常用命令
 
 ```bash
 go run . serve                 # 启动服务端（首次打印管理员随机密码）
 go run . login -u sysadmin     # 客户端登录
-go build -o todo_helper .      # 构建（*.exe / todo_helper 已被 .gitignore 忽略）
+go build -o quad .             # 构建（*.exe / quad 已被 .gitignore 忽略）
 go vet ./...
 go test ./...
 go test ./internal/api -run TestTodoLifecycleAndIsolation -v   # 单测/单流程

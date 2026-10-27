@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"strings"
 
-	"todo_helper/internal/store"
+	"quad/internal/store"
 )
 
 type todoCreateRequest struct {

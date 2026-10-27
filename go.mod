@@ -1,4 +1,4 @@
-module todo_helper
+module quad
 
 go 1.27.3
 

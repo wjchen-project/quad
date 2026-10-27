@@ -17,8 +17,8 @@ import (
 	"strings"
 	"time"
 
-	"todo_helper/internal/config"
-	"todo_helper/internal/store"
+	"quad/internal/config"
+	"quad/internal/store"
 )
 
 // ErrLoginRequired 表示本地没有可用登录态，或刷新令牌已失效。

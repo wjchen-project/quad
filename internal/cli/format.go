@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"todo_helper/internal/store"
+	"quad/internal/store"
 )
 
 // displayWidth 估算终端显示宽度，把常见 CJK 字符按 2 列计算。

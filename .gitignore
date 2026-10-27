@@ -4,12 +4,13 @@
 *.dll
 *.so
 *.dylib
-todo_helper
+/quad
 
 # 本地数据库
 *.db
 *.db-wal
 *.db-shm
+/data/
 
 # 测试与覆盖率
 *.test

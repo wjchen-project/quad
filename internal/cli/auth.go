@@ -7,24 +7,24 @@ import (
 	"os"
 	"strings"
 
-	"todo_helper/internal/client"
-	"todo_helper/internal/config"
+	"quad/internal/client"
+	"quad/internal/config"
 )
 
-const loginUsage = `用法: todo_helper login [参数]
+const loginUsage = `用法: quad login [参数]
 
-登录成功后，access_token / refresh_token 会保存到用户目录（默认 ~/.todo_helper/session.json），
+登录成功后，access_token / refresh_token 会保存到用户目录（默认 ~/.quad/session.json），
 访问令牌过期时客户端会自动用 refresh_token 续期。
 
 参数:
 `
 
-const logoutUsage = `用法: todo_helper logout
+const logoutUsage = `用法: quad logout
 
 撤销服务端刷新令牌并删除本地登录态。
 `
 
-const whoamiUsage = `用法: todo_helper whoami
+const whoamiUsage = `用法: quad whoami
 
 显示当前登录用户与服务端地址。
 `
@@ -51,7 +51,7 @@ func runLogin(args []string) int {
 		user = c.Username()
 	}
 	if user == "" {
-		user = strings.TrimSpace(os.Getenv("TODO_HELPER_USERNAME"))
+		user = strings.TrimSpace(os.Getenv(config.EnvUsername))
 	}
 	if user == "" {
 		user = config.DefaultAdminUsername

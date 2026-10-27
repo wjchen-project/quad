@@ -16,13 +16,15 @@ import (
 
 // 环境变量名，命令行参数优先级高于环境变量。
 const (
-	EnvHome          = "TODO_HELPER_HOME"
-	EnvConfig        = "TODO_HELPER_CONFIG"
-	EnvAddr          = "TODO_HELPER_ADDR"
-	EnvDBPath        = "TODO_HELPER_DB"
-	EnvAdminUsername = "TODO_HELPER_ADMIN_USERNAME"
-	EnvAccessTTL     = "TODO_HELPER_ACCESS_TOKEN_MINUTES"
-	EnvRefreshTTL    = "TODO_HELPER_REFRESH_TOKEN_HOURS"
+	EnvHome          = "QUAD_HOME"
+	EnvConfig        = "QUAD_CONFIG"
+	EnvAddr          = "QUAD_ADDR"
+	EnvDBPath        = "QUAD_DB"
+	EnvAdminUsername = "QUAD_ADMIN_USERNAME"
+	EnvAccessTTL     = "QUAD_ACCESS_TOKEN_MINUTES"
+	EnvRefreshTTL    = "QUAD_REFRESH_TOKEN_HOURS"
+	// EnvUsername 只影响客户端 login 的默认用户名。
+	EnvUsername = "QUAD_USERNAME"
 )
 
 // 默认值。
@@ -50,14 +52,14 @@ func Default() (Config, error) {
 	}
 	return Config{
 		Addr:               DefaultAddr,
-		DBPath:             filepath.Join(dir, "todo_helper.db"),
+		DBPath:             filepath.Join(dir, "quad.db"),
 		AdminUsername:      DefaultAdminUsername,
 		AccessTokenMinutes: DefaultAccessMinutes,
 		RefreshTokenHours:  DefaultRefreshHours,
 	}, nil
 }
 
-// DataDir 返回数据目录 ~/.todo_helper（可用 TODO_HELPER_HOME 覆盖）。
+// DataDir 返回数据目录 ~/.quad（可用 QUAD_HOME 覆盖）。
 func DataDir() (string, error) {
 	if home := strings.TrimSpace(os.Getenv(EnvHome)); home != "" {
 		return filepath.Clean(home), nil
@@ -66,7 +68,7 @@ func DataDir() (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("config: 无法定位用户目录: %w", err)
 	}
-	return filepath.Join(home, ".todo_helper"), nil
+	return filepath.Join(home, ".quad"), nil
 }
 
 // SessionPath 返回客户端登录态文件路径。

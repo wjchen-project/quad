@@ -1,4 +1,4 @@
-// Package cli 实现 todo_helper 的全部子命令。
+// Package cli 实现 quad 的全部子命令。
 //
 // 作者: wjchen
 package cli
@@ -14,10 +14,10 @@ import (
 // Version 由构建时可通过 -ldflags 覆盖。
 var Version = "0.1.0"
 
-const rootUsage = `todo_helper - 终端待办工具（客户端与服务端同一个二进制）
+const rootUsage = `quad - 终端待办工具（客户端与服务端同一个二进制）
 
 用法:
-  todo_helper <命令> [参数]
+  quad <命令> [参数]
 
 命令:
   serve        启动 HTTP API 服务端
@@ -30,12 +30,12 @@ const rootUsage = `todo_helper - 终端待办工具（客户端与服务端同�
   help         显示本帮助
 
 典型流程:
-  todo_helper serve                      # 终端 1：启动服务端（首次会打印随机管理员密码）
-  todo_helper login -u sysadmin          # 终端 2：登录
-  todo_helper todo add -q q1 -t "写周报"  # 添加重要且紧急的待办
-  todo_helper todo list
+  quad serve                      # 终端 1：启动服务端（首次会打印随机管理员密码）
+  quad login -u sysadmin          # 终端 2：登录
+  quad todo add -q q1 -t "写周报"  # 添加重要且紧急的待办
+  quad todo list
 
-运行 "todo_helper <命令> -h" 查看子命令参数。
+运行 "quad <命令> -h" 查看子命令参数。
 `
 
 // Run 是 CLI 入口，返回进程退出码。
@@ -59,7 +59,7 @@ func Run(args []string) int {
 	case "user":
 		return runUser(rest)
 	case "version", "--version", "-v":
-		fmt.Printf("todo_helper v%s\n", Version)
+		fmt.Printf("quad v%s\n", Version)
 		return 0
 	case "help", "-h", "--help":
 		fmt.Print(rootUsage)

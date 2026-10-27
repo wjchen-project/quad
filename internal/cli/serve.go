@@ -13,13 +13,13 @@ import (
 	"syscall"
 	"time"
 
-	"todo_helper/internal/api"
-	"todo_helper/internal/bootstrap"
-	"todo_helper/internal/config"
-	"todo_helper/internal/store"
+	"quad/internal/api"
+	"quad/internal/bootstrap"
+	"quad/internal/config"
+	"quad/internal/store"
 )
 
-const serveUsage = `用法: todo_helper serve [参数]
+const serveUsage = `用法: quad serve [参数]
 
 启动 API 服务端。首次启动会创建管理员账号并打印随机密码。
 配置优先级：命令行参数 > 环境变量 > 配置文件 > 默认值。
@@ -30,8 +30,8 @@ const serveUsage = `用法: todo_helper serve [参数]
 func runServe(args []string) int {
 	fs := newFlagSet("serve")
 	addr := fs.String("addr", "", "监听地址（默认 127.0.0.1:8787）")
-	dbPath := fs.String("db", "", "SQLite 数据库路径（默认 ~/.todo_helper/todo_helper.db）")
-	configFlag := fs.String("config", "", "配置文件路径（默认 ~/.todo_helper/server.json）")
+	dbPath := fs.String("db", "", "SQLite 数据库路径（默认 ~/.quad/quad.db）")
+	configFlag := fs.String("config", "", "配置文件路径（默认 ~/.quad/server.json）")
 	adminUsername := fs.String("admin-username", "", "管理员用户名（默认 sysadmin）")
 	resetPassword := fs.Bool("reset-admin-password", false, "启动时重置管理员密码并打印新密码")
 	fs.Usage = func() { printUsage(fs, serveUsage) }

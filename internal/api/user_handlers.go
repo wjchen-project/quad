@@ -4,8 +4,8 @@ import (
 	"errors"
 	"net/http"
 
-	"todo_helper/internal/auth"
-	"todo_helper/internal/store"
+	"quad/internal/auth"
+	"quad/internal/store"
 )
 
 type userCreateRequest struct {

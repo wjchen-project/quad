@@ -14,9 +14,9 @@ import (
 	"strings"
 	"time"
 
-	"todo_helper/internal/auth"
-	"todo_helper/internal/bootstrap"
-	"todo_helper/internal/store"
+	"quad/internal/auth"
+	"quad/internal/bootstrap"
+	"quad/internal/store"
 )
 
 // Options 是构建 Server 所需的依赖。

@@ -10,7 +10,7 @@ import (
 	"sync"
 	"testing"
 
-	"todo_helper/internal/config"
+	"quad/internal/config"
 )
 
 type fakeAPI struct {
@@ -99,7 +99,7 @@ func writeAPIError(w http.ResponseWriter, status int, code, message string) {
 
 func newClientHarness(t *testing.T) (*Client, *fakeAPI, *httptest.Server) {
 	t.Helper()
-	t.Setenv("TODO_HELPER_HOME", t.TempDir())
+	t.Setenv(config.EnvHome, t.TempDir())
 	fake := &fakeAPI{}
 	ts := httptest.NewServer(fake)
 	t.Cleanup(ts.Close)
@@ -231,7 +231,7 @@ func TestLogoutClearsSession(t *testing.T) {
 }
 
 func TestCorruptSessionIsTreatedAsLoggedOut(t *testing.T) {
-	t.Setenv("TODO_HELPER_HOME", t.TempDir())
+	t.Setenv(config.EnvHome, t.TempDir())
 	path, err := config.SessionPath()
 	if err != nil {
 		t.Fatal(err)

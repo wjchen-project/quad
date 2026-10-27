@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"todo_helper/internal/auth"
-	"todo_helper/internal/store"
+	"quad/internal/auth"
+	"quad/internal/store"
 )
 
 func newStore(t *testing.T) *store.Store {

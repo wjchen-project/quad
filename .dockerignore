@@ -1,0 +1,16 @@
+.git
+.gitignore
+.idea
+.vscode
+*.swp
+*.exe
+/quad
+*.db
+*.db-wal
+*.db-shm
+*.out
+coverage.html
+README.md
+AGENTS.md
+Dockerfile
+docker-compose.yml

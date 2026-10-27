@@ -10,8 +10,8 @@ import (
 	"errors"
 	"fmt"
 
-	"todo_helper/internal/auth"
-	"todo_helper/internal/store"
+	"quad/internal/auth"
+	"quad/internal/store"
 )
 
 const (

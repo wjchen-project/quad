@@ -30,7 +30,7 @@ func TestLoadDefaults(t *testing.T) {
 	if cfg.Addr != DefaultAddr || cfg.AdminUsername != DefaultAdminUsername {
 		t.Fatalf("cfg = %+v", cfg)
 	}
-	if want := filepath.Join(home, "todo_helper.db"); cfg.DBPath != want {
+	if want := filepath.Join(home, "quad.db"); cfg.DBPath != want {
 		t.Fatalf("db = %q, want %q", cfg.DBPath, want)
 	}
 	if cfg.AccessTTL() != 30*time.Minute || cfg.RefreshTTL() != 720*time.Hour {

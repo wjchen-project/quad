@@ -1,4 +1,4 @@
-// todo_helper 是终端待办工具，客户端与服务端共用一个二进制。
+// quad 是终端待办工具，客户端与服务端共用一个二进制。
 //
 // 作者: wjchen
 package main
@@ -6,7 +6,7 @@ package main
 import (
 	"os"
 
-	"todo_helper/internal/cli"
+	"quad/internal/cli"
 )
 
 func main() {
