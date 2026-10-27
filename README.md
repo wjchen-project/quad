@@ -53,12 +53,13 @@ go build -o quad .
 
 ### 使用已发布的镜像
 
-打 `v*` 标签（或在 Actions 页面手动触发 `docker` workflow）时会自动构建多架构镜像（amd64 + arm64）并推到 `ghcr.io`，tag 固定为 `latest`：
+打 `v*` 标签（或在 Actions 页面手动触发 `docker` workflow）时会自动构建镜像（当前 `linux/amd64`）并推到 `ghcr.io`，同时打上版本号与 `latest` 两个 tag：
 
 ```bash
-git tag v0.1.0 && git push --tags
+git tag v1.0.2 && git push --tags
 # 之后拉取
 docker pull ghcr.io/wjchen-project/quad:latest
+docker pull ghcr.io/wjchen-project/quad:v1.0.2
 ```
 
 不构建本地镜像，直接拉取部署：
@@ -69,10 +70,10 @@ docker run -d --name quad -p 127.0.0.1:8787:8787 \
   -v quad-data:/data ghcr.io/wjchen-project/quad:latest
 ```
 
-镜像只保留 `latest` 一个 tag；版本号只作为触发条件，不进入镜像名。实际版本可通过 `org.opencontainers.image.revision` label 查看：
+镜像 tag 为 `<版本号>` 与 `latest`，可用 tag 或 digest 固定版本；`org.opencontainers.image.version` label 即 git tag：
 
 ```bash
-docker inspect --format '{{ index .Config.Labels "org.opencontainers.image.revision" }}' ghcr.io/wjchen-project/quad:latest
+docker inspect --format '{{ index .Config.Labels "org.opencontainers.image.version" }}' ghcr.io/wjchen-project/quad:v1.0.2
 ```
 私有仓库首次拉取需要 `echo $PAT | docker login ghcr.io -u <用户名> --password-stdin`，PAT 需 `read:packages` 权限。
 

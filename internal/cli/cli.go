@@ -12,7 +12,7 @@ import (
 )
 
 // Version 由构建时通过 -ldflags -X 覆盖，默认值仅用于本地开发。
-var Version = "0.1.0"
+var Version = "1.0.2"
 
 const rootUsage = `quad - 终端待办工具（客户端与服务端同一个二进制）
 
