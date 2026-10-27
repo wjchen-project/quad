@@ -51,6 +51,31 @@ go build -o quad .
 - 管理员用户名用 `QUAD_ADMIN_USERNAME` 覆盖。
 - 若改用宿主机目录（`./data:/data`），需保证 uid 10001 可写：`sudo chown -R 10001:10001 ./data`。
 
+### 使用已发布的镜像
+
+打 `v*` 标签（或在 Actions 页面手动触发 `docker` workflow）时会自动构建多架构镜像（amd64 + arm64）并推到 `ghcr.io`，tag 固定为 `latest`：
+
+```bash
+git tag v0.1.0 && git push --tags
+# 之后拉取
+docker pull ghcr.io/wjchen-project/quad:latest
+```
+
+不构建本地镜像，直接拉取部署：
+
+```bash
+docker run -d --name quad -p 127.0.0.1:8787:8787 \
+  -e QUAD_HOME=/data -e QUAD_ADMIN_USERNAME=sysadmin \
+  -v quad-data:/data ghcr.io/wjchen-project/quad:latest
+```
+
+镜像只保留 `latest` 一个 tag；版本号只作为触发条件，不进入镜像名。实际版本可通过 `org.opencontainers.image.revision` label 查看：
+
+```bash
+docker inspect --format '{{ index .Config.Labels "org.opencontainers.image.revision" }}' ghcr.io/wjchen-project/quad:latest
+```
+私有仓库首次拉取需要 `echo $PAT | docker login ghcr.io -u <用户名> --password-stdin`，PAT 需 `read:packages` 权限。
+
 ## 命令
 
 ### 服务端

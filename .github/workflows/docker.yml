@@ -1,0 +1,123 @@
+# 作者: wjchen
+name: docker
+
+# 只在打 v* 标签或手动触发时构建，镜像统一覆盖为 latest
+on:
+  workflow_dispatch:
+  push:
+    tags: ['v*']
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+  # 纯 Go 无 cgo，可同时出 arm64；只想要 amd64 时改成 "linux/amd64"
+  PLATFORMS: linux/amd64,linux/arm64
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-push:
+    name: build & push image
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Log in to ${{ env.REGISTRY }}
+        uses: docker/login-action@v4
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push
+        id: build
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: ./Dockerfile
+          platforms: ${{ env.PLATFORMS }}
+          push: true
+          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+          labels: |
+            org.opencontainers.image.title=quad
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.licenses=MIT
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # ---- 从 registry 反查刚推送的镜像，取真实 digest / 大小 / 各平台构建时间 ----
+      - name: Inspect pushed image
+        id: inspect
+        run: |
+          set -euo pipefail
+          image="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest"
+
+          # 原始 manifest（多架构时是 manifest list），含顶层 digest 与各子 manifest 大小
+          docker buildx imagetools inspect --raw "$image" | tee manifest.json
+
+          digest="$(jq -r '.digest' manifest.json)"
+          size_bytes="$(jq -r '[.size] + [.manifests[]?.size] | add' manifest.json)"
+          size_human="$(awk -v b="$size_bytes" 'BEGIN{printf "%.1f MiB", b/1048576}')"
+
+          echo "image=${image}" >> "$GITHUB_OUTPUT"
+          echo "digest=${digest}" >> "$GITHUB_OUTPUT"
+          echo "size=${size_human}" >> "$GITHUB_OUTPUT"
+
+          # 逐平台取镜像 config 的 created 字段，即该平台镜像的构建完成时间
+          for platform in $(echo '${{ env.PLATFORMS }}' | tr ',' ' '); do
+            arch="${platform#linux/}"
+            created="$(docker buildx imagetools inspect "$image" \
+              --format "{{json (index .Image \"linux/${arch}\").created}}" \
+              | tr -d '\"')"
+            echo "created-${arch}=${created}" >> "$GITHUB_OUTPUT"
+          done
+
+      - name: Write build report
+        run: |
+          set -euo pipefail
+          image="${{ steps.inspect.outputs.image }}"
+          digest="${{ steps.inspect.outputs.digest }}"
+          built_at="$(date -u '+%Y-%m-%d %H:%M:%S UTC')"
+          {
+            echo "### Docker image published"
+            echo ""
+            echo "| | |"
+            echo "|---|---|"
+            echo "| Image | \`${image}\` |"
+            echo "| Digest | \`${digest}\` |"
+            echo "| Pinned ref | \`${image}@${digest}\` |"
+            echo "| Platforms | $(echo '${{ env.PLATFORMS }}' | tr ',' ' ') |"
+            echo "| Total size | ${{ steps.inspect.outputs.size }} |"
+            echo "| Image built at (amd64) | ${{ steps.inspect.outputs.created-amd64 }} |"
+            echo "| Image built at (arm64) | ${{ steps.inspect.outputs.created-arm64 }} |"
+            echo "| Workflow finished at | ${built_at} |"
+            echo "| Git ref | \`${{ github.ref_name }}\` |"
+            echo "| Commit | \`${{ github.sha }}\` |"
+            echo "| Trigger | ${{ github.event_name }} |"
+            echo "| Workflow | [\`#\${{ github.run_number }}\`](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}) |"
+            echo ""
+            echo "Pull by digest:"
+            echo '```bash'
+            echo "docker pull ${image}@${digest}"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload build report
+        uses: actions/upload-artifact@v7
+        with:
+          name: build-report
+          path: manifest.json
+          if-no-files-found: error
+          retention-days: 30
