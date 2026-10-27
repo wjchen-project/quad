@@ -61,38 +61,31 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      # ---- 从 registry 反查刚推送的镜像，取真实 digest / 大小 / 构建时间 ----
+      # ---- 构建报告：digest 直接用 build-push-action 的输出，构建时间从 registry 反查 ----
       - name: Inspect pushed image
         id: inspect
         run: |
           set -euo pipefail
           image="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.ref_name }}"
 
-          # 用 {{json .Manifest}} 而非 --raw：raw 的 manifest list 缺顶层 digest 字段
-          docker buildx imagetools inspect "$image" --format '{{json .Manifest}}' | tee manifest.json
-
-          digest="$(jq -r '.digest // empty' manifest.json)"
+          # digest 来自构建步骤输出，无需再查一次 registry
+          digest="${{ steps.build.outputs.digest }}"
           if [ -z "$digest" ]; then
-            echo "::error::无法从 manifest 解析 digest，manifest.json 内容如下"
-            cat manifest.json
+            echo "::error::build 步骤未输出 digest"
             exit 1
           fi
-          size_bytes="$(jq -r '[.size] + [.manifests[]?.size] | add' manifest.json)"
-          size_human="$(awk -v b="$size_bytes" 'BEGIN{printf "%.1f MiB", b/1048576}')"
 
           echo "image=${image}" >> "$GITHUB_OUTPUT"
           echo "digest=${digest}" >> "$GITHUB_OUTPUT"
-          echo "size=${size_human}" >> "$GITHUB_OUTPUT"
 
-          # 逐平台取镜像 config 的 created 字段，即该平台镜像的构建完成时间。
-          # 取整段 JSON 再用 jq 解析，避免 Go 模板字段名大小写问题。
-          for platform in $(echo '${{ env.PLATFORMS }}' | tr ',' ' '); do
-            arch="${platform#linux/}"
-            created="$(docker buildx imagetools inspect "$image" \
-              --format "{{json (index .Image \"${platform}\")}}" \
-              | jq -r '.created // "n/a"')"
-            echo "created-${arch}=${created}" >> "$GITHUB_OUTPUT"
-          done
+          # 单平台镜像的 .Image 是结构体而非 map，不能再用 index 索引
+          created="$(docker buildx imagetools inspect "$image" \
+            --format '{{json .Image}}' \
+            | jq -r '.created // "n/a"')"
+          echo "created=${created}" >> "$GITHUB_OUTPUT"
+
+          # manifest 供 artifact 存档
+          docker buildx imagetools inspect "$image" --format '{{json .Manifest}}' | tee manifest.json
 
       - name: Write build report
         run: |
@@ -106,11 +99,11 @@ jobs:
             echo "| | |"
             echo "|---|---|"
             echo "| Image | \`${image}\` |"
+            echo "| Version | \`${{ github.ref_name }}\` |"
             echo "| Digest | \`${digest}\` |"
             echo "| Pinned ref | \`${image}@${digest}\` |"
             echo "| Platforms | $(echo '${{ env.PLATFORMS }}' | tr ',' ' ') |"
-            echo "| Total size | ${{ steps.inspect.outputs.size }} |"
-            echo "| Image built at | ${{ steps.inspect.outputs.created-amd64 }} |"
+            echo "| Image built at | ${{ steps.inspect.outputs.created }} |"
             echo "| Workflow finished at | ${built_at} |"
             echo "| Git ref | \`${{ github.ref_name }}\` |"
             echo "| Commit | \`${{ github.sha }}\` |"
