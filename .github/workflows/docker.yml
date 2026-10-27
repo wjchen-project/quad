@@ -64,10 +64,15 @@ jobs:
           set -euo pipefail
           image="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest"
 
-          # 原始 manifest（多架构时是 manifest list），含顶层 digest 与各子 manifest 大小
-          docker buildx imagetools inspect --raw "$image" | tee manifest.json
+          # 用 {{json .Manifest}} 而非 --raw：raw 的 manifest list 缺顶层 digest 字段
+          docker buildx imagetools inspect "$image" --format '{{json .Manifest}}' | tee manifest.json
 
-          digest="$(jq -r '.digest' manifest.json)"
+          digest="$(jq -r '.digest // empty' manifest.json)"
+          if [ -z "$digest" ]; then
+            echo "::error::无法从 manifest 解析 digest，manifest.json 内容如下"
+            cat manifest.json
+            exit 1
+          fi
           size_bytes="$(jq -r '[.size] + [.manifests[]?.size] | add' manifest.json)"
           size_human="$(awk -v b="$size_bytes" 'BEGIN{printf "%.1f MiB", b/1048576}')"
 
@@ -75,12 +80,13 @@ jobs:
           echo "digest=${digest}" >> "$GITHUB_OUTPUT"
           echo "size=${size_human}" >> "$GITHUB_OUTPUT"
 
-          # 逐平台取镜像 config 的 created 字段，即该平台镜像的构建完成时间
+          # 逐平台取镜像 config 的 created 字段，即该平台镜像的构建完成时间。
+          # 取整段 JSON 再用 jq 解析，避免 Go template 字段名大小写问题。
           for platform in $(echo '${{ env.PLATFORMS }}' | tr ',' ' '); do
             arch="${platform#linux/}"
             created="$(docker buildx imagetools inspect "$image" \
-              --format "{{json (index .Image \"linux/${arch}\").created}}" \
-              | tr -d '\"')"
+              --format "{{json (index .Image \"${platform}\")}}" \
+              | jq -r '.created // "n/a"')"
             echo "created-${arch}=${created}" >> "$GITHUB_OUTPUT"
           done
 
