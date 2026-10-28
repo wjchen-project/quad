@@ -5,6 +5,7 @@
 *.swp
 *.exe
 /quad
+/dist/
 *.db
 *.db-wal
 *.db-shm

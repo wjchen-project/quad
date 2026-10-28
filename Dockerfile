@@ -1,7 +1,12 @@
 # syntax=docker/dockerfile:1
 
 # ---- 构建阶段 ----
-FROM golang:1.27.3-alpine AS build
+# 在构建机原生架构上交叉编译目标架构，避免 Go 编译走 QEMU 模拟
+FROM --platform=$BUILDPLATFORM golang:1.27.3-alpine AS build
+
+ARG TARGETOS
+ARG TARGETARCH
+ARG QUAD_VERSION=dev
 
 WORKDIR /src
 COPY go.mod go.sum ./
@@ -12,7 +17,7 @@ RUN --mount=type=cache,target=/go/pkg/mod \
 COPY . .
 RUN --mount=type=cache,target=/go/pkg/mod \
     --mount=type=cache,target=/root/.cache/go-build \
-    CGO_ENABLED=0 GOOS=linux go build \
+    CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} go build \
     -trimpath \
     -buildvcs=false \
     -ldflags="-s -w -X quad/internal/cli.Version=${QUAD_VERSION}" \

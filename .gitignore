@@ -5,6 +5,7 @@
 *.so
 *.dylib
 /quad
+/dist/
 
 # 本地数据库
 *.db

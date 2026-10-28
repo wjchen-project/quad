@@ -53,7 +53,7 @@ go build -o quad .
 
 ### 使用已发布的镜像
 
-打 `v*` 标签（或在 Actions 页面手动触发 `docker` workflow）时会自动构建镜像（当前 `linux/amd64`）并推到 `ghcr.io`，同时打上版本号与 `latest` 两个 tag：
+打 `v*` 标签（或在 Actions 页面手动触发 `release` workflow）时会自动构建多架构镜像（`linux/amd64`、`linux/arm64`）并推到 `ghcr.io`，同时打上版本号与 `latest` 两个 tag；手动触发只推 `dev-<sha>`：
 
 ```bash
 git tag v1.0.2 && git push --tags
@@ -76,6 +76,19 @@ docker run -d --name quad -p 127.0.0.1:8787:8787 \
 docker inspect --format '{{ index .Config.Labels "org.opencontainers.image.version" }}' ghcr.io/wjchen-project/quad:v1.0.2
 ```
 私有仓库首次拉取需要 `echo $PAT | docker login ghcr.io -u <用户名> --password-stdin`，PAT 需 `read:packages` 权限。
+
+## 发布产物
+
+打 `v*` 标签时，`release` workflow 同时构建 Windows / Linux 二进制并创建 GitHub Release：
+
+| 产物 | 平台 |
+| --- | --- |
+| `quad_<版本>_linux_amd64.tar.gz` | linux/amd64 |
+| `quad_<版本>_linux_arm64.tar.gz` | linux/arm64（aarch64） |
+| `quad_<版本>_windows_amd64.zip` | windows/amd64 |
+| `quad_<版本>_windows_arm64.zip` | windows/arm64（aarch64） |
+
+Release 同时附带 `checksums.txt`（SHA-256）。手动触发 `release` workflow 只构建 CI artifact（版本号 `dev-<sha>`），不会创建 Release。
 
 ## 命令
 
