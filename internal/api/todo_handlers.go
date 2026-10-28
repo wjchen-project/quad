@@ -44,6 +44,37 @@ func (s *Server) handleListTodos(w http.ResponseWriter, r *http.Request) {
 		}
 		filter.Quadrant = quadrant
 	}
+	if raw := strings.TrimSpace(q.Get("title")); raw != "" {
+		filter.Title = raw
+	}
+	if raw := strings.TrimSpace(q.Get("from")); raw != "" {
+		ts, err := parseTimeParam(raw, false)
+		if err != nil {
+			writeError(w, http.StatusBadRequest, "invalid_request", "from "+err.Error())
+			return
+		}
+		filter.CreatedFrom = &ts
+	}
+	if raw := strings.TrimSpace(q.Get("to")); raw != "" {
+		ts, err := parseTimeParam(raw, true)
+		if err != nil {
+			writeError(w, http.StatusBadRequest, "invalid_request", "to "+err.Error())
+			return
+		}
+		filter.CreatedTo = &ts
+	}
+	if filter.CreatedFrom != nil && filter.CreatedTo != nil && filter.CreatedFrom.After(*filter.CreatedTo) {
+		writeError(w, http.StatusBadRequest, "invalid_request", "from 不能晚于 to")
+		return
+	}
+	if raw := strings.TrimSpace(q.Get("exclude_done")); raw != "" {
+		exclude, err := strconv.ParseBool(raw)
+		if err != nil {
+			writeError(w, http.StatusBadRequest, "invalid_request", "exclude_done 必须是布尔值")
+			return
+		}
+		filter.ExcludeDone = exclude
+	}
 	if raw := strings.TrimSpace(q.Get("limit")); raw != "" {
 		n, err := strconv.Atoi(raw)
 		if err != nil || n <= 0 {

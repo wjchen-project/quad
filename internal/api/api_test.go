@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -422,6 +423,87 @@ func TestTodoLifecycleAndIsolation(t *testing.T) {
 	}
 	if status, _ := h.request(t, http.MethodGet, "/api/v1/todos/abc", h.adminToken, nil); status != http.StatusBadRequest {
 		t.Fatalf("非法 ID = %d, want 400", status)
+	}
+}
+
+func TestTodoListFilters(t *testing.T) {
+	h := newHarness(t)
+	create := func(title, quadrant, status string) store.Todo {
+		t.Helper()
+		body := map[string]any{"title": title, "quadrant": quadrant}
+		if status != "" {
+			body["status"] = status
+		}
+		statusCode, data := h.request(t, http.MethodPost, "/api/v1/todos", h.adminToken, body)
+		if statusCode != http.StatusCreated {
+			t.Fatalf("create %q = %d %s", title, statusCode, data)
+		}
+		var todo store.Todo
+		if err := json.Unmarshal(data, &todo); err != nil {
+			t.Fatal(err)
+		}
+		return todo
+	}
+	create("写周报", "q1", "")
+	create("买牛奶", "q3", "done")
+	create("写文档", "q2", "")
+
+	list := func(query string) []store.Todo {
+		t.Helper()
+		statusCode, data := h.request(t, http.MethodGet, "/api/v1/todos"+query, h.adminToken, nil)
+		if statusCode != http.StatusOK {
+			t.Fatalf("list %q = %d %s", query, statusCode, data)
+		}
+		var resp struct {
+			Todos []store.Todo `json:"todos"`
+		}
+		if err := json.Unmarshal(data, &resp); err != nil {
+			t.Fatal(err)
+		}
+		return resp.Todos
+	}
+
+	if got := list(""); len(got) != 3 {
+		t.Fatalf("默认应返回全部状态, got %d", len(got))
+	}
+	if got := list("?exclude_done=true"); len(got) != 2 {
+		t.Fatalf("exclude_done 失败, got %d", len(got))
+	}
+	if got := list("?title=" + url.QueryEscape("写")); len(got) != 2 {
+		t.Fatalf("title 过滤失败, got %d", len(got))
+	}
+	if got := list("?title=" + url.QueryEscape("牛奶")); len(got) != 1 || got[0].Status != store.StatusDone {
+		t.Fatalf("title 精确过滤失败: %+v", got)
+	}
+
+	past := url.QueryEscape(time.Now().Add(-24 * time.Hour).UTC().Format(time.RFC3339))
+	future := url.QueryEscape(time.Now().Add(24 * time.Hour).UTC().Format(time.RFC3339))
+	if got := list("?from=" + past + "&to=" + future); len(got) != 3 {
+		t.Fatalf("时间区间应包含全部, got %d", len(got))
+	}
+	if got := list("?from=" + future); len(got) != 0 {
+		t.Fatalf("未来起点应为空, got %d", len(got))
+	}
+	if got := list("?to=" + past); len(got) != 0 {
+		t.Fatalf("过去终点应为空, got %d", len(got))
+	}
+	// 纯日期作为 to 时包含当天，覆盖刚创建的待办。
+	today := url.QueryEscape(time.Now().UTC().Format("2006-01-02"))
+	if got := list("?from=" + today + "&to=" + today); len(got) != 3 {
+		t.Fatalf("纯日期区间应包含当天, got %d", len(got))
+	}
+	if got := list("?status=done&exclude_done=true"); len(got) != 0 {
+		t.Fatalf("status 与 exclude_done 组合应为空, got %d", len(got))
+	}
+
+	for _, query := range []string{
+		"?from=not-a-time",
+		"?exclude_done=maybe",
+		"?from=" + future + "&to=" + past,
+	} {
+		if statusCode, data := h.request(t, http.MethodGet, "/api/v1/todos"+query, h.adminToken, nil); statusCode != http.StatusBadRequest {
+			t.Fatalf("非法参数 %q = %d %s, want 400", query, statusCode, data)
+		}
 	}
 }
 

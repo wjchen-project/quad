@@ -66,6 +66,13 @@ type RefreshToken struct {
 type TodoFilter struct {
 	Status   string
 	Quadrant string
-	Limit    int
-	Offset   int
+	// Title 按标题做不区分 ASCII 大小写的子串匹配。
+	Title string
+	// CreatedFrom / CreatedTo 按创建时间闭区间过滤，nil 表示不限。
+	CreatedFrom *time.Time
+	CreatedTo   *time.Time
+	// ExcludeDone 为 true 时排除已完成（status=done）的待办。
+	ExcludeDone bool
+	Limit       int
+	Offset      int
 }

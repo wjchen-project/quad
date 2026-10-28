@@ -197,10 +197,14 @@ func (c *Client) DeleteUser(ctx context.Context, id int64) error {
 
 // TodoQuery 是待办列表过滤条件。
 type TodoQuery struct {
-	Status   string
-	Quadrant string
-	Limit    int
-	Offset   int
+	Status      string
+	Quadrant    string
+	Title       string
+	From        *time.Time
+	To          *time.Time
+	ExcludeDone bool
+	Limit       int
+	Offset      int
 }
 
 // ListTodos 返回当前用户的待办。
@@ -211,6 +215,18 @@ func (c *Client) ListTodos(ctx context.Context, q TodoQuery) ([]store.Todo, erro
 	}
 	if q.Quadrant != "" {
 		values.Set("quadrant", q.Quadrant)
+	}
+	if q.Title != "" {
+		values.Set("title", q.Title)
+	}
+	if q.From != nil {
+		values.Set("from", q.From.UTC().Format(time.RFC3339Nano))
+	}
+	if q.To != nil {
+		values.Set("to", q.To.UTC().Format(time.RFC3339Nano))
+	}
+	if q.ExcludeDone {
+		values.Set("exclude_done", "true")
 	}
 	if q.Limit > 0 {
 		values.Set("limit", fmt.Sprint(q.Limit))

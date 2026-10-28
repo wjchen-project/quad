@@ -103,7 +103,7 @@ quad whoami
 
 ```bash
 quad todo add    -t <标题> -q <q1..q4> [-n 备注] [-s 状态] [-p 进度]
-quad todo list   [-s 状态] [-q 象限] [--limit N] [--offset N]
+quad todo list   [-s 状态] [-q 象限] [-t 标题关键字] [--from 时间] [--to 时间] [--limit N] [--offset N]
 quad todo show   <ID>
 quad todo update <ID> [-t 标题] [-n 备注] [-q 象限] [-s 状态] [-p 进度]
 quad todo done   <ID>
@@ -112,6 +112,8 @@ quad todo rm     <ID>
 ```
 
 参数可以放在 ID 前后，例如 `todo update 3 -p 60 -s in_progress` 与 `todo update -p 60 3` 等价。
+
+`todo list` 默认排除已完成（`done`）的待办，需要查看时指定 `--status done`。`--title` 按标题做关键字过滤；`--from` / `--to` 按创建时间过滤，支持 `2026-10-01`、`2026-10-01 08:30` 和 RFC3339，纯日期的 `--to` 包含当天。
 
 象限与状态可用别名：
 
@@ -185,6 +187,8 @@ quad user rm     <用户名|ID>
 | GET/PATCH/DELETE | `/todos/{id}` | 登录 | 查看 / 部分更新 / 删除 |
 | GET/POST | `/users` | 管理员 | 用户列表 / 新建 |
 | PATCH/DELETE | `/users/{id}` | 管理员 | 改密码或角色 / 删除 |
+
+`GET /todos` 支持查询参数：`status`、`quadrant`、`title`（标题关键字）、`from` / `to`（创建时间，含边界，接受 RFC3339 或 `2006-01-02[ 15:04]`）、`exclude_done=true`（排除已完成）、`limit`、`offset`。默认返回全部状态。
 
 新建待办示例：
 

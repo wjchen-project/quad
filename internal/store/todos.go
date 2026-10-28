@@ -73,6 +73,22 @@ func (s *Store) ListTodos(ctx context.Context, userID int64, filter TodoFilter) 
 		sb.WriteString(` AND quadrant = ?`)
 		args = append(args, filter.Quadrant)
 	}
+	if filter.Title != "" {
+		sb.WriteString(` AND instr(lower(title), lower(?)) > 0`)
+		args = append(args, filter.Title)
+	}
+	if filter.CreatedFrom != nil {
+		sb.WriteString(` AND created_at >= ?`)
+		args = append(args, filter.CreatedFrom.UTC().UnixMilli())
+	}
+	if filter.CreatedTo != nil {
+		sb.WriteString(` AND created_at <= ?`)
+		args = append(args, filter.CreatedTo.UTC().UnixMilli())
+	}
+	if filter.ExcludeDone {
+		sb.WriteString(` AND status <> ?`)
+		args = append(args, StatusDone)
+	}
 	sb.WriteString(` ORDER BY created_at DESC, id DESC`)
 	limit := filter.Limit
 	if limit <= 0 {

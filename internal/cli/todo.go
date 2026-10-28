@@ -7,6 +7,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 
 	"quad/internal/client"
 	"quad/internal/store"
@@ -124,22 +125,32 @@ func runTodoAdd(args []string) int {
 
 func runTodoList(args []string) int {
 	fs := newFlagSet("todo list")
-	statusRaw := fs.String("status", "", "按状态过滤")
+	statusRaw := fs.String("status", "", "按状态过滤（默认排除已完成，指定 done 可查看）")
 	fs.StringVar(statusRaw, "s", "", "同 --status")
 	quadrantRaw := fs.String("quadrant", "", quadrantHelp)
 	fs.StringVar(quadrantRaw, "q", "", "同 --quadrant")
+	titleRaw := fs.String("title", "", "按标题关键字模糊过滤")
+	fs.StringVar(titleRaw, "t", "", "同 --title")
+	fromRaw := fs.String("from", "", "创建时间起点，如 2026-10-01 或 \"2026-10-01 08:30\"")
+	toRaw := fs.String("to", "", "创建时间终点，纯日期包含当天")
 	limit := fs.Int("limit", 0, "最多返回条数（默认 200）")
 	offset := fs.Int("offset", 0, "跳过条数")
 	fs.Usage = func() {
 		printUsage(fs, `用法: quad todo list [参数]
 
-参数:
+默认排除已完成（done）的待办；需要查看时指定 --status done。参数:
 `)
 	}
 	if ok, code := parseFlags(fs, args, false); !ok {
 		return code
 	}
 	query := client.TodoQuery{Limit: *limit, Offset: *offset}
+	statusSet := false
+	fs.Visit(func(f *flag.Flag) {
+		if f.Name == "status" || f.Name == "s" {
+			statusSet = true
+		}
+	})
 	if strings.TrimSpace(*statusRaw) != "" {
 		status, ok := store.NormalizeStatus(*statusRaw)
 		if !ok {
@@ -147,12 +158,36 @@ func runTodoList(args []string) int {
 		}
 		query.Status = status
 	}
+	// 未显式指定状态时默认排除已完成，保持列表聚焦在未完成事项上。
+	if !statusSet {
+		query.ExcludeDone = true
+	}
 	if strings.TrimSpace(*quadrantRaw) != "" {
 		quadrant, ok := store.NormalizeQuadrant(*quadrantRaw)
 		if !ok {
 			return fail("--quadrant 取值无效：%s", quadrantHelp)
 		}
 		query.Quadrant = quadrant
+	}
+	if keyword := strings.TrimSpace(*titleRaw); keyword != "" {
+		query.Title = keyword
+	}
+	if raw := strings.TrimSpace(*fromRaw); raw != "" {
+		from, err := parseTimeBound(raw, false)
+		if err != nil {
+			return fail("--from %v", err)
+		}
+		query.From = &from
+	}
+	if raw := strings.TrimSpace(*toRaw); raw != "" {
+		to, err := parseTimeBound(raw, true)
+		if err != nil {
+			return fail("--to %v", err)
+		}
+		query.To = &to
+	}
+	if query.From != nil && query.To != nil && query.From.After(*query.To) {
+		return fail("--from 不能晚于 --to")
 	}
 	if *limit < 0 || *offset < 0 {
 		return fail("--limit / --offset 不能为负数")
@@ -168,6 +203,30 @@ func runTodoList(args []string) int {
 	}
 	printTodoTable(todos)
 	return 0
+}
+
+// parseTimeBound 解析 --from / --to 的时间参数，带时区时以参数为准，
+// 否则按本地时区解析；纯日期作为终点时覆盖到当天最后一毫秒。
+func parseTimeBound(raw string, endOfDay bool) (time.Time, error) {
+	raw = strings.TrimSpace(raw)
+	for _, layout := range []string{
+		time.RFC3339,
+		"2006-01-02T15:04:05",
+		"2006-01-02 15:04:05",
+		"2006-01-02 15:04",
+	} {
+		if ts, err := time.ParseInLocation(layout, raw, time.Local); err == nil {
+			return ts, nil
+		}
+	}
+	ts, err := time.ParseInLocation("2006-01-02", raw, time.Local)
+	if err != nil {
+		return time.Time{}, fmt.Errorf("时间格式无效: %q（支持 2026-10-01、2026-10-01 08:30 或 RFC3339）", raw)
+	}
+	if endOfDay {
+		ts = ts.AddDate(0, 0, 1).Add(-time.Millisecond)
+	}
+	return ts, nil
 }
 
 func runTodoShow(args []string) int {

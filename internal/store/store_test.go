@@ -199,6 +199,90 @@ func TestTodoCRUDFiltersAndIsolation(t *testing.T) {
 	}
 }
 
+func TestTodoListTitleTimeAndDoneFilters(t *testing.T) {
+	st := newTestStore(t)
+	ctx := context.Background()
+	alice := mustUser(t, st, "alice", RoleUser)
+
+	mk := func(title, status string, createdAt time.Time) Todo {
+		t.Helper()
+		todo, err := st.CreateTodo(ctx, Todo{
+			UserID:   alice.ID,
+			Title:    title,
+			Quadrant: QuadrantUrgentImportant,
+			Status:   status,
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := st.db.ExecContext(ctx, `UPDATE todos SET created_at = ? WHERE id = ?`,
+			createdAt.UTC().UnixMilli(), todo.ID); err != nil {
+			t.Fatal(err)
+		}
+		todo.CreatedAt = createdAt.UTC()
+		return todo
+	}
+	early := mk("写周报", StatusPending, time.Date(2026, 10, 1, 9, 0, 0, 0, time.UTC))
+	mk("买牛奶", StatusDone, time.Date(2026, 10, 10, 9, 0, 0, 0, time.UTC))
+	late := mk("写文档 review", StatusPending, time.Date(2026, 10, 20, 9, 0, 0, 0, time.UTC))
+
+	ids := func(todos []Todo) []int64 {
+		out := make([]int64, 0, len(todos))
+		for _, todo := range todos {
+			out = append(out, todo.ID)
+		}
+		return out
+	}
+
+	byTitle, err := st.ListTodos(ctx, alice.ID, TodoFilter{Title: "写"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(byTitle) != 2 || byTitle[0].ID != late.ID || byTitle[1].ID != early.ID {
+		t.Fatalf("title 过滤失败: %+v", byTitle)
+	}
+	// 标题匹配不区分 ASCII 大小写。
+	byCase, err := st.ListTodos(ctx, alice.ID, TodoFilter{Title: "REVIEW"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(byCase) != 1 || byCase[0].ID != late.ID {
+		t.Fatalf("title 大小写过滤失败: %+v", byCase)
+	}
+
+	from := time.Date(2026, 10, 5, 0, 0, 0, 0, time.UTC)
+	to := time.Date(2026, 10, 15, 0, 0, 0, 0, time.UTC)
+	inRange, err := st.ListTodos(ctx, alice.ID, TodoFilter{CreatedFrom: &from, CreatedTo: &to})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(inRange) != 1 || inRange[0].Status != StatusDone {
+		t.Fatalf("时间区间过滤失败: %+v", inRange)
+	}
+	// 边界值应包含在内。
+	boundary := early.CreatedAt
+	atStart, err := st.ListTodos(ctx, alice.ID, TodoFilter{CreatedFrom: &boundary})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(atStart) != 3 {
+		t.Fatalf("起始边界应包含, got %v", ids(atStart))
+	}
+
+	notDone, err := st.ListTodos(ctx, alice.ID, TodoFilter{ExcludeDone: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(notDone) != 2 {
+		t.Fatalf("排除已完成失败: %v", ids(notDone))
+	}
+	for _, todo := range notDone {
+		if todo.Status == StatusDone {
+			t.Fatalf("结果不应包含已完成待办: %+v", todo)
+		}
+	}
+}
+
 func TestDeleteUserCascadesTodos(t *testing.T) {
 	st := newTestStore(t)
 	ctx := context.Background()
