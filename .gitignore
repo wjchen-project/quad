@@ -25,3 +25,6 @@ coverage.html
 # 系统文件
 .DS_Store
 Thumbs.db
+
+# OpenCode 本地配置
+opencode.json
